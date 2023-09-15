@@ -22,7 +22,7 @@
  * IN THE SOFTWARE.
  */
 
-#include <qmdnsengine/abstractserver.h>
+#include <abstractserver.h>
 
 using namespace QMdnsEngine;
 

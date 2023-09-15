@@ -27,7 +27,7 @@
 
 #include <QtCore/qglobal.h>
 
-#cmakedefine BUILD_SHARED_LIBS
+// #cmakedefine BUILD_SHARED_LIBS
 
 #if defined(BUILD_SHARED_LIBS)
 #  if defined(QMDNSENGINE_LIBRARY)

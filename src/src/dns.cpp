@@ -25,11 +25,11 @@
 #include <QHostAddress>
 #include <QtEndian>
 
-#include <qmdnsengine/bitmap.h>
-#include <qmdnsengine/dns.h>
-#include <qmdnsengine/message.h>
-#include <qmdnsengine/query.h>
-#include <qmdnsengine/record.h>
+#include <bitmap.h>
+#include <dns.h>
+#include <message.h>
+#include <query.h>
+#include <record.h>
 
 namespace QMdnsEngine
 {

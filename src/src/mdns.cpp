@@ -22,7 +22,7 @@
  * IN THE SOFTWARE.
  */
 
-#include <qmdnsengine/mdns.h>
+#include <mdns.h>
 
 namespace QMdnsEngine
 {

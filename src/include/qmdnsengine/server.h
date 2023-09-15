@@ -25,8 +25,7 @@
 #ifndef QMDNSENGINE_SERVER_H
 #define QMDNSENGINE_SERVER_H
 
-#include <qmdnsengine/abstractserver.h>
-
+#include <abstractserver.h>
 #include "qmdnsengine_export.h"
 
 namespace QMdnsEngine

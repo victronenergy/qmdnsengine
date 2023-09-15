@@ -22,8 +22,7 @@
  * IN THE SOFTWARE.
  */
 
-#include <qmdnsengine/bitmap.h>
-
+#include <bitmap.h>
 #include "bitmap_p.h"
 
 using namespace QMdnsEngine;

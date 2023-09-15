@@ -22,11 +22,10 @@
  * IN THE SOFTWARE.
  */
 
-#include <qmdnsengine/mdns.h>
-#include <qmdnsengine/message.h>
-#include <qmdnsengine/query.h>
-#include <qmdnsengine/record.h>
-
+#include <mdns.h>
+#include <message.h>
+#include <query.h>
+#include <record.h>
 #include "message_p.h"
 
 using namespace QMdnsEngine;

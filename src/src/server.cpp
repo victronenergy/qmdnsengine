@@ -33,11 +33,10 @@
 #include <QHostAddress>
 #include <QNetworkInterface>
 
-#include <qmdnsengine/dns.h>
-#include <qmdnsengine/mdns.h>
-#include <qmdnsengine/message.h>
-#include <qmdnsengine/server.h>
-
+#include <dns.h>
+#include <mdns.h>
+#include <message.h>
+#include <server.h>
 #include "server_p.h"
 
 using namespace QMdnsEngine;

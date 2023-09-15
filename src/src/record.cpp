@@ -24,9 +24,8 @@
 
 #include <QDebug>
 
-#include <qmdnsengine/dns.h>
-#include <qmdnsengine/record.h>
-
+#include <dns.h>
+#include <record.h>
 #include "record_p.h"
 
 using namespace QMdnsEngine;

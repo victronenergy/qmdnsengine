@@ -24,9 +24,8 @@
 
 #include <QDebug>
 
-#include <qmdnsengine/dns.h>
-#include <qmdnsengine/query.h>
-
+#include <dns.h>
+#include <query.h>
 #include "query_p.h"
 
 using namespace QMdnsEngine;

@@ -29,8 +29,7 @@
 #include <QHostAddress>
 #include <QMap>
 
-#include <qmdnsengine/bitmap.h>
-
+#include <bitmap.h>
 #include "qmdnsengine_export.h"
 
 namespace QMdnsEngine
