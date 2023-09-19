@@ -7,26 +7,22 @@ static const char TAG[] = "[MDNSSC]";
 MdnsScanner::MdnsScanner(QByteArray serviceName, QObject *parent)
 	: QObject{parent}
 {
-	qRegisterMetaType<QMdnsEngine::Message>();
-
-	queryTimer.setInterval(rescanTime * 1000);
-	queryTimer.setSingleShot(true);
-
-	checkDevicesTimer.setInterval(checkDevicesPeriod * 1000);
-	checkDevicesTimer.setSingleShot(false);
-
-	connect(&queryTimer			, &QTimer::timeout, this, &MdnsScanner::onQueryTimeout       ,Qt::QueuedConnection);
-	connect(&checkDevicesTimer	, &QTimer::timeout, this, &MdnsScanner::onCheckDevicesTimeout,Qt::QueuedConnection);
-
 	setServiceName(serviceName);
+	init();
 }
 
 MdnsScanner::MdnsScanner(QList<QByteArray> serviceList, QObject *parent)
 	: QObject{parent}
 {
+	setServiceList(serviceList);
+	init();
+}
+
+void MdnsScanner::init()
+{
 	qRegisterMetaType<QMdnsEngine::Message>();
 
-	queryTimer.setInterval(rescanTime * 1000);
+	queryTimer.setInterval(rescanPeriod * 1000);
 	queryTimer.setSingleShot(true);
 
 	checkDevicesTimer.setInterval(checkDevicesPeriod * 1000);
@@ -34,8 +30,6 @@ MdnsScanner::MdnsScanner(QList<QByteArray> serviceList, QObject *parent)
 
 	connect(&queryTimer			, &QTimer::timeout, this, &MdnsScanner::onQueryTimeout       ,Qt::QueuedConnection);
 	connect(&checkDevicesTimer	, &QTimer::timeout, this, &MdnsScanner::onCheckDevicesTimeout,Qt::QueuedConnection);
-
-	setServiceList(serviceList);
 }
 
 MdnsScanner::~MdnsScanner(){
@@ -228,7 +222,7 @@ void MdnsScanner::onCheckDevicesTimeout()
 	QMap<QByteArray,QByteArray> deviceData;
 	QSet<QByteArray> servicesOfTheDevice;
 	foreach (auto deviceName, deviceLastResponse.keys()) {
-		if (deviceLastResponse.value(deviceName).addSecs(timeToDisconect) < QTime::currentTime()) {
+		if (deviceLastResponse.value(deviceName).addSecs(timeToDisconnect) < QTime::currentTime()) {
 			deviceData.insert("hostname",deviceName);
 			servicesOfTheDevice = servicesOfDevices.value(deviceName);
 			deviceList.remove(deviceName);

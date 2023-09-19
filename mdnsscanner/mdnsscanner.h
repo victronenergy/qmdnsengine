@@ -32,6 +32,9 @@ public:
 	void addServiceName(QByteArray serviceName);
 	void setServiceList(QList<QByteArray> servicesList);
 
+	void setRescanPeriod(int period)	{ rescanPeriod = period; };
+	void setTimeToDisconnect(int time)	{ timeToDisconnect = time; }
+
 	void setMessageFilterContent(QByteArray content);
 
 	typedef QMap<QByteArray,QByteArray> DeviceData;
@@ -46,9 +49,11 @@ signals:
 	void deviceRemoved(DeviceData deviceData);
 
 private:
-	int rescanTime		   = 5;
-	int timeToDisconect    = 15;
-	int checkDevicesPeriod = 1;
+	void init();
+
+	int rescanPeriod		= 4;
+	int timeToDisconnect	= 10;
+	int checkDevicesPeriod	= 1;
 
 	QSet<QByteArray> serviceNamesArray;
 
