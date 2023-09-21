@@ -39,6 +39,9 @@ public:
 
 	typedef QMap<QByteArray,QByteArray> DeviceData;
 
+	void cleanDeviceList();
+	void resetDeviceTimeouts();
+
 public slots:
 	void startScan();
 	void stopScan();
@@ -74,6 +77,7 @@ private slots:
 
 	void onQueryTimeout();
 	void onCheckDevicesTimeout();
+	void removeDevice(QByteArray deviceName);
 };
 
 Q_DECLARE_METATYPE(MdnsScanner::DeviceData)

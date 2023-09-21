@@ -28,8 +28,8 @@ void MdnsScanner::init()
 	checkDevicesTimer.setInterval(checkDevicesPeriod * 1000);
 	checkDevicesTimer.setSingleShot(false);
 
-	connect(&queryTimer			, &QTimer::timeout, this, &MdnsScanner::onQueryTimeout       ,Qt::QueuedConnection);
-	connect(&checkDevicesTimer	, &QTimer::timeout, this, &MdnsScanner::onCheckDevicesTimeout,Qt::QueuedConnection);
+	connect(&queryTimer			, &QTimer::timeout, this, &MdnsScanner::onQueryTimeout       , Qt::QueuedConnection);
+	connect(&checkDevicesTimer	, &QTimer::timeout, this, &MdnsScanner::onCheckDevicesTimeout, Qt::QueuedConnection);
 }
 
 MdnsScanner::~MdnsScanner(){
@@ -37,13 +37,27 @@ MdnsScanner::~MdnsScanner(){
 	stopScan();
 }
 
+void MdnsScanner::cleanDeviceList()
+{
+	foreach (auto deviceName, deviceList.values()) {
+		removeDevice(deviceName);
+	}
+}
+
+void MdnsScanner::resetDeviceTimeouts()
+{
+	foreach (auto deviceName, deviceLastResponse.keys()) {
+		deviceLastResponse.insert(deviceName,QTime::currentTime());
+	}
+}
+
 void MdnsScanner::startScan()
 {
 	qDebug() << TAG << __PRETTY_FUNCTION__;
 	if (server == nullptr) {
 		server  = new QMdnsEngine::Server();
+		connect(server, &QMdnsEngine::Server::messageReceived, this, &MdnsScanner::onMessageReceived);
 	}
-	connect(server, &QMdnsEngine::Server::messageReceived, this, &MdnsScanner::onMessageReceived);
 	onQueryTimeout();
 	checkDevicesTimer.start();
 }
@@ -52,8 +66,8 @@ void MdnsScanner::stopScan()
 {
 	queryTimer.stop();
 	checkDevicesTimer.stop();
-	disconnect(server, &QMdnsEngine::Server::messageReceived, this, &MdnsScanner::onMessageReceived);
 	// TODO: Try the next to remove server
+	// disconnect(server, &QMdnsEngine::Server::messageReceived, this, &MdnsScanner::onMessageReceived);
 	// connect(this,&QObject::destroyed,server,&QObject::deleteLater,Qt::QueuedConnection);
 }
 
@@ -106,6 +120,11 @@ bool MdnsScanner::checkMessageRecordsContent(QList<QMdnsEngine::Record> recordLi
 void MdnsScanner::onMessageReceived(const Message &message)
 {
 	if (!message.isResponse()) {
+		return;
+	}
+
+	if (!queryTimer.isActive()) {
+		// The scanner has been stopped
 		return;
 	}
 
@@ -165,11 +184,13 @@ void MdnsScanner::onMessageReceived(const Message &message)
 			break;
 		}
 	}
+	QByteArray serialNumber = device.value("serial",QByteArray());
+	thereIsEnoughData &= !serialNumber.isEmpty();
 	if (!thereIsEnoughData) {
 		return;
 	}
 
-	QByteArray deviceName = hostname;
+	QByteArray deviceName = serialNumber;
 	QSet<QByteArray> serviceList;
 	if (!deviceList.contains(deviceName)) {
 		qDebug() << TAG << "New device discovered:" << deviceName << "  | Service:" << serviceType;
@@ -219,17 +240,22 @@ void MdnsScanner::onQueryTimeout()
 
 void MdnsScanner::onCheckDevicesTimeout()
 {
-	QMap<QByteArray,QByteArray> deviceData;
 	QSet<QByteArray> servicesOfTheDevice;
 	foreach (auto deviceName, deviceLastResponse.keys()) {
 		if (deviceLastResponse.value(deviceName).addSecs(timeToDisconnect) < QTime::currentTime()) {
-			deviceData.insert("hostname",deviceName);
 			servicesOfTheDevice = servicesOfDevices.value(deviceName);
-			deviceList.remove(deviceName);
-			deviceLastResponse.remove(deviceName);
-			servicesOfDevices.remove(deviceName);
-			emit deviceRemoved(deviceData);
 			qDebug() << TAG << "Device" << deviceName << "does not respond anymore | Attached services:" << servicesOfTheDevice;
+			removeDevice(deviceName);
 		}
 	}
+}
+
+void MdnsScanner::removeDevice(QByteArray deviceName)
+{
+	DeviceData deviceData;
+	deviceData.insert("serial",deviceName);
+	deviceList.remove(deviceName);
+	deviceLastResponse.remove(deviceName);
+	servicesOfDevices.remove(deviceName);
+	emit deviceRemoved(deviceData);
 }
