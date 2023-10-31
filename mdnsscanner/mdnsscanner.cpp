@@ -103,7 +103,9 @@ bool MdnsScanner::checkMessageRecordsContent(QList<QMdnsEngine::Record> recordLi
 		switch (record.type()) {
 		case TXT:
 			if (record.attributes().size()) {
-				for (auto [attr,value]: record.attributes().asKeyValueRange()) {
+				// for (auto [attr,value]: record.attributes().asKeyValueRange()) {
+				foreach (auto attr, record.attributes().keys()) {
+					auto value = record.attributes().value(attr);
 					if (attr.contains(messageFilterContent)) {
 						validData = true;
 					}
@@ -144,7 +146,9 @@ void MdnsScanner::onMessageReceived(const Message &message)
 		debugTxt.append(record.name().leftJustified(48));
 		if (record.attributes().size()) {
 			debugTxt.append("#Attr(").append(QString::number(record.attributes().size())).append(") ");
-			for (auto [attr,value]: record.attributes().asKeyValueRange()) {
+			// for (auto [attr,value]: record.attributes().asKeyValueRange()) {
+			foreach (auto attr, record.attributes().keys()) {
+				auto value = record.attributes().value(attr);
 				debugTxt.append(" <").append(attr).append(" ").append(value).append("> ");
 			}
 		}
@@ -173,8 +177,9 @@ void MdnsScanner::onMessageReceived(const Message &message)
 			}
 			break;
 		case TXT:
-			for (auto [key,value]: record.attributes().asKeyValueRange()) {
-				device.insert(key,value);
+			foreach (auto attr, record.attributes().keys()) {
+				auto value = record.attributes().value(attr);
+				device.insert(attr,value);
 			}
 			break;
 		case A:
@@ -213,7 +218,9 @@ void MdnsScanner::onMessageReceived(const Message &message)
 #if DEBUG_MDNSSCANNER_MESSAGES_DEBUG
 	QString debugTxtB = QString("| Decoded device data") + QString(QChar::LineSeparator);
 	debugTxtB += QString("    ") + QString("Device ") + QString(deviceName) + QString(QChar::LineSeparator);
-	for (auto [key,value]: device.asKeyValueRange()) {
+	// for (auto [key,value]: device.asKeyValueRange()) {
+	foreach (auto key, device.keys()) {
+		auto value = device.value(key);
 		debugTxtB += QString("        ") + QString(key.leftJustified(12)) + QString(value) + QString(QChar::LineSeparator);
 	}
 	debugTxtB += "    Total services discovered for the device: ";

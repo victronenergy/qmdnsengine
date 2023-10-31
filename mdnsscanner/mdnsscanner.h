@@ -81,5 +81,6 @@ private slots:
 };
 
 Q_DECLARE_METATYPE(MdnsScanner::DeviceData)
+Q_DECLARE_METATYPE(QMdnsEngine::Message)
 
 #endif // MDNSSCANNER_H
