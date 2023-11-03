@@ -96,6 +96,14 @@ void ServerPrivate::onTimeout()
     bool ipv4Bound = bindSocket(ipv4Socket, QHostAddress::AnyIPv4);
     bool ipv6Bound = bindSocket(ipv6Socket, QHostAddress::AnyIPv6);
 
+#if QT_VERSION <= QT_VERSION_CHECK(5,13,2) && defined(Q_OS_ANDROID)
+	if (ipv4Bound) {
+		ipv4Socket.joinMulticastGroup(MdnsIpv4Address);
+	}
+	if (ipv6Bound) {
+		ipv6Socket.joinMulticastGroup(MdnsIpv6Address);
+	}
+#else
     if (ipv4Bound || ipv6Bound) {
         const auto interfaces = QNetworkInterface::allInterfaces();
         for (const QNetworkInterface &networkInterface : interfaces) {
@@ -109,7 +117,7 @@ void ServerPrivate::onTimeout()
             }
         }
     }
-
+#endif
     timer.start();
 }
 
