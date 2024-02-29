@@ -137,92 +137,88 @@ void MdnsScanner::onMessageReceived(const Message &message)
 	}
 
 #if DEBUG_MDNSSCANNER_MESSAGES_DEBUG > 1
-	QString debugTxt;
-	foreach(Record record, records){
-		debugTxt.append(QString(QChar::LineSeparator)).append("        ");
-		debugTxt.append(QMdnsEngine::typeName(record.type()).leftJustified(6));
-		debugTxt.append(record.name().leftJustified(48));
-		if (record.attributes().size()) {
-			debugTxt.append("#Attr(").append(QString::number(record.attributes().size())).append(") ");
-			for (auto [attr,value]: record.attributes().asKeyValueRange()) {
-				debugTxt.append(" <").append(attr).append(" ").append(value).append("> ");
-			}
-		}
-	}
-	qDebug() << TAG << __FUNCTION__ << debugTxt;
+	printDecodedMessageContent(message);
 #endif
 
-	DeviceData device;
-	QByteArray fqdn;			// Fully Qualified Domain Name:
+	// Collect data from all records
 	QByteArray hostname;
-	QByteArray serviceType;
-	int index;
-	bool thereIsEnoughData = false;
-	device.insert("address",message.address().toString().toUtf8());
+	QByteArray address;
+	QByteArray serialNumber;
+	QSet<QByteArray> reportedServicesList;
+	QHash<QByteArray, QMap<QByteArray, QByteArray>> servicePropertiesList;
+	QHash<QByteArray, QByteArray> txtRecords;
+
 	for (const Record &record : records) {
+		QByteArray fqdn;			// Fully Qualified Domain Name:
+		QByteArray serviceName;
+		QMap<QByteArray, QByteArray> serviceProperties;
+		int index;
 		switch (record.type()) {
 		case SRV:
 			fqdn  = record.name();
 			index = fqdn.indexOf('.');
 			hostname    = fqdn.left(index);
-			serviceType = fqdn.mid(index + 1);
-			if (any || serviceNamesArray.contains(serviceType)) {
-				thereIsEnoughData = true;
-				device.insert("service",serviceType);
-				device.insert("port"   ,QByteArray::number(record.port()));
+			serviceName = fqdn.mid(index + 1);
+			if (any || serviceNamesArray.contains(serviceName)) {
+				serviceProperties = servicePropertiesList.value(serviceName, QMap<QByteArray, QByteArray>());
+				serviceProperties.insert("port", QByteArray::number(record.port()));
+				servicePropertiesList.insert(serviceName, serviceProperties);
 			}
 			break;
 		case TXT:
 			for (auto [key,value]: record.attributes().asKeyValueRange()) {
-				device.insert(key,value);
+				txtRecords.insert(key,value);
 			}
 			break;
 		case A:
 		case AAAA:
+			address = record.address().toString().toUtf8();
+			break;
 		case PTR:
+			fqdn = record.name();
+			reportedServicesList.insert(fqdn);
 		default:
 			break;
 		}
 	}
-	QByteArray serialNumber = device.value("serial",QByteArray());
+	serialNumber = txtRecords.value("serial", QByteArray());
+
+	bool thereIsEnoughData = true;
+	thereIsEnoughData &= !hostname.isEmpty();
+	thereIsEnoughData &= !address.isEmpty();
 	thereIsEnoughData &= !serialNumber.isEmpty();
 	if (!thereIsEnoughData) {
 		return;
 	}
 
-	QByteArray deviceName = serialNumber;
-	QSet<QByteArray> serviceList;
-	if (!deviceList.contains(deviceName)) {
-		qDebug() << TAG << "New device discovered:" << deviceName << "  | Service:" << serviceType;
-		deviceList.insert(deviceName);
-		deviceLastResponse.insert(deviceName ,QTime::currentTime());
-		serviceList.insert(serviceType);
-		servicesOfDevices.insert(deviceName,serviceList);
-		emit deviceDiscovered(device);
-	} else {
-#if DEBUG_MDNSSCANNER_MESSAGES_DEBUG
-		qDebug() << TAG << "Already known device response:" << deviceName << "  | Service:" << serviceType;
-#endif
-		deviceLastResponse.insert(deviceName,QTime::currentTime());
-		serviceList = servicesOfDevices.value(deviceName);
-		serviceList.insert(serviceType);
-		servicesOfDevices.insert(deviceName,serviceList);
-		emit deviceUpdated(device);
+	// Build a DeviceData for every service discovered
+	foreach (auto serviceName, reportedServicesList) {
+		bool thereIsEnoughData = true;
+		thereIsEnoughData &= servicePropertiesList.keys().contains(serviceName);
+		if (thereIsEnoughData) {
+			DeviceData deviceData;
+			deviceData.insert("hostname",hostname);
+			deviceData.insert("address" ,address);
+			deviceData.insert("service" ,serviceName);
+			for (auto [serviceProperty, value]: servicePropertiesList.value(serviceName).asKeyValueRange()) {
+				deviceData.insert(serviceProperty,value);
+			}
+			for (auto [property, value]: txtRecords.asKeyValueRange()) {
+				deviceData.insert(property, txtRecords.value(property));
+			}
+			printDecodedDeviceData(deviceData);
+			deviceList.insert(serialNumber);
+			deviceLastResponse.insert(serialNumber ,QTime::currentTime());
+			QSet<QByteArray> serviceList = servicesOfDevices.value(serialNumber, QSet<QByteArray>());
+			serviceList.insert(serviceName);
+			servicesOfDevices.insert(serialNumber,serviceList);
+			if (!deviceList.contains(serialNumber)) {
+				emit deviceDiscovered(deviceData);
+			} else {
+				emit deviceUpdated(deviceData);
+			}
+		}
 	}
-
-#if DEBUG_MDNSSCANNER_MESSAGES_DEBUG
-	QString debugTxtB = QString("| Decoded device data") + QString(QChar::LineSeparator);
-	debugTxtB += QString("    ") + QString("Device ") + QString(deviceName) + QString(QChar::LineSeparator);
-	for (auto [key,value]: device.asKeyValueRange()) {
-		debugTxtB += QString("        ") + QString(key.leftJustified(12)) + QString(value) + QString(QChar::LineSeparator);
-	}
-	debugTxtB += "    Total services discovered for the device: ";
-	foreach (QByteArray serviceName, servicesOfDevices.value(deviceName).values())
-	{
-		debugTxtB += QString(serviceName) + QString("; ");
-	}
-	qDebug() << TAG << __FUNCTION__ << debugTxtB;
-#endif
 }
 
 void MdnsScanner::onQueryTimeout()
@@ -233,6 +229,7 @@ void MdnsScanner::onQueryTimeout()
 		query.setType(PTR);
 		Message message;
 		message.addQuery(query);
+		message.setTransactionId(++transactionId);
 		server->sendMessageToAll(message);
 	}
 	queryTimer.start();
@@ -258,4 +255,68 @@ void MdnsScanner::removeDevice(QByteArray deviceName)
 	deviceLastResponse.remove(deviceName);
 	servicesOfDevices.remove(deviceName);
 	emit deviceRemoved(deviceData);
+}
+
+void MdnsScanner::printDecodedMessageContent(Message message)
+{
+	const auto records = message.records();
+	QString debugTxt;
+	debugTxt += "Message received from " + message.address().toString();
+	debugTxt += " | Transaction ID " + QString::number(message.transactionId());
+	debugTxt += " | Full message records details";
+	foreach (Record record, records) {
+		debugTxt.append(QString(QChar::LineSeparator));
+		debugTxt.append("    ");
+		// Record type
+		debugTxt.append(QMdnsEngine::typeName(record.type()).leftJustified(6));
+		// Record name (Full Qualified Domain Name)
+		debugTxt.append(record.name().leftJustified(65));
+		// Extra data
+		debugTxt.append(" : ");
+		// Record address data
+		if (record.type() == A || record.type() == AAAA) {
+			debugTxt.append("Address ");
+			debugTxt.append(record.address().toString().leftJustified(16));
+		}
+		// Service Port
+		if (record.type() == SRV ) {
+			debugTxt.append("Port ");
+			debugTxt.append(QString::number(record.port()).leftJustified(6));
+		}
+		// Attributes
+		if (record.attributes().size()) {
+			debugTxt.append("Attributes(").append(QString::number(record.attributes().size())).append(")    ");
+			for (auto [attr,value]: record.attributes().asKeyValueRange()) {
+				debugTxt.append(" <").append(attr).append(" ").append(value).append(">");
+			}
+		}
+	}
+	qDebug() << TAG << debugTxt;
+}
+
+void MdnsScanner::printDecodedDeviceData(DeviceData deviceData)
+{
+	QByteArray serialNumber = deviceData.value("serial");
+	QByteArray serviceName  = deviceData.value("service");
+	QString debugTxt;
+	if (!deviceList.contains(serialNumber)) {
+		debugTxt += "New device discovered";
+	} else {
+		debugTxt += "Already known device";
+	}
+	debugTxt += " | Serial " + serialNumber + " | Service " + serviceName;
+#if DEBUG_MDNSSCANNER_MESSAGES_DEBUG
+	debugTxt += QString(QChar::LineSeparator);
+	debugTxt += QString("    Decoded device data");
+	debugTxt += QString(QChar::LineSeparator);
+	for (auto [key,value]: deviceData.asKeyValueRange()) {
+		debugTxt += QString("        ") + QString(key.leftJustified(12)) + QString(value) + QString(QChar::LineSeparator);
+	}
+	debugTxt += "    Total services discovered for this device: ";
+	foreach (QByteArray serviceName, servicesOfDevices.value(serialNumber).values())
+	{
+		debugTxt += QString(serviceName) + QString("; ");
+	}
+#endif
+	qDebug() << TAG << debugTxt;
 }

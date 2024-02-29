@@ -55,8 +55,9 @@ private:
 	void init();
 
 	int rescanPeriod		= 4;
-	int timeToDisconnect	= 10;
+	int timeToDisconnect	= 18;
 	int checkDevicesPeriod	= 1;
+	quint16 transactionId	= 0;
 
 	QSet<QByteArray> serviceNamesArray;
 
@@ -78,6 +79,10 @@ private slots:
 	void onQueryTimeout();
 	void onCheckDevicesTimeout();
 	void removeDevice(QByteArray deviceName);
+
+private:
+	void printDecodedMessageContent(QMdnsEngine::Message);
+	void printDecodedDeviceData(DeviceData);
 };
 
 Q_DECLARE_METATYPE(MdnsScanner::DeviceData)

@@ -41,6 +41,8 @@
 
 using namespace QMdnsEngine;
 
+static const char TAG[] = "[MDNSSV]";
+
 ServerPrivate::ServerPrivate(Server *server)
     : QObject(server),
       q(server)
@@ -121,7 +123,11 @@ void ServerPrivate::onReadyRead()
     packet.resize(socket->pendingDatagramSize());
     QHostAddress address;
     quint16 port;
-    socket->readDatagram(packet.data(), packet.size(), &address, &port);
+	socket->readDatagram(packet.data(), packet.size(), &address, &port);
+
+#if DEBUG_MDNSSCANNER_MESSAGES_DEBUG > 1
+	qDebug() << TAG << __PRETTY_FUNCTION__ << "From " << address << ":" << port << "| Data read" << packet.size() << "bytes.";
+#endif
 
     // Attempt to decode the packet
     Message message;
@@ -153,6 +159,11 @@ void Server::sendMessageToAll(const Message &message)
 {
     QByteArray packet;
     toPacket(message, packet);
-    d->ipv4Socket.writeDatagram(packet, MdnsIpv4Address, MdnsPort);
-    d->ipv6Socket.writeDatagram(packet, MdnsIpv6Address, MdnsPort);
+	qint64 bytesToIpV4;
+	qint64 bytesToIpV6;
+	bytesToIpV4 = d->ipv4Socket.writeDatagram(packet, MdnsIpv4Address, MdnsPort);
+	bytesToIpV6 = d->ipv6Socket.writeDatagram(packet, MdnsIpv6Address, MdnsPort);
+#if DEBUG_MDNSSCANNER_MESSAGES_DEBUG > 1
+	qDebug() << TAG << __FUNCTION__ << "| Transaction ID" << message.transactionId() <<  "| Bytes written IPv4:" << bytesToIpV4 << ", IPv6:" << bytesToIpV6;
+#endif
 }
