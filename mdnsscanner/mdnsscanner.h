@@ -18,11 +18,15 @@
 #define DEBUG_MDNSSCANNER_MESSAGES_DEBUG 0
 #endif
 
+typedef QMap<QByteArray, QByteArray> DeviceData;
+
 class MdnsScanner : public QObject
 {
 	Q_OBJECT
 
 public:
+	using DeviceData = ::DeviceData;
+
 	explicit MdnsScanner(QByteArray serviceName = QMdnsEngine::MdnsBrowseType, QObject *parent = nullptr);
 	explicit MdnsScanner(QList<QByteArray> servicesList, QObject *parent = nullptr);
 
@@ -36,8 +40,6 @@ public:
 	void setTimeToDisconnect(int time)	{ timeToDisconnect = time; }
 
 	void setMessageFilterContent(QByteArray content);
-
-	typedef QMap<QByteArray,QByteArray> DeviceData;
 
 	void cleanDeviceList();
 	void resetDeviceTimeouts();
@@ -84,7 +86,5 @@ private:
 	void printDecodedMessageContent(QMdnsEngine::Message);
 	void printDecodedDeviceData(DeviceData);
 };
-
-Q_DECLARE_METATYPE(MdnsScanner::DeviceData)
 
 #endif // MDNSSCANNER_H
