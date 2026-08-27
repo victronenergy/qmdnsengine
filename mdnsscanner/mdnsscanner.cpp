@@ -66,9 +66,8 @@ void MdnsScanner::stopScan()
 {
 	queryTimer.stop();
 	checkDevicesTimer.stop();
-	// TODO: Try the next to remove server
-	// disconnect(server, &QMdnsEngine::Server::messageReceived, this, &MdnsScanner::onMessageReceived);
-	// connect(this,&QObject::destroyed,server,&QObject::deleteLater,Qt::QueuedConnection);
+	delete server;
+	server = nullptr;
 }
 
 void MdnsScanner::setServiceName(QByteArray serviceName)
