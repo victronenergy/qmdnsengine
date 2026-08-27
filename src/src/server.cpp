@@ -117,25 +117,70 @@ void ServerPrivate::onTimeout()
 
 void ServerPrivate::onReadyRead()
 {
-    // Read the packet from the socket
     QUdpSocket *socket = qobject_cast<QUdpSocket*>(sender());
-    QByteArray packet;
-    packet.resize(socket->pendingDatagramSize());
-    QHostAddress address;
-    quint16 port;
-	socket->readDatagram(packet.data(), packet.size(), &address, &port);
+    if (!socket) {
+        return;
+    }
+
+    processPendingDatagrams(socket);
+}
+
+void ServerPrivate::processPendingDatagrams(QUdpSocket *socket)
+{
+    // Do not let a continuous stream of multicast traffic monopolize the event
+    // loop. If more packets remain, continue processing them in a later turn.
+    static constexpr int maxDatagramsPerBatch = 64;
+
+    for (int i = 0; i < maxDatagramsPerBatch; ++i) {
+        const qint64 pendingSize = socket->pendingDatagramSize();
+        if (pendingSize < 0) {
+            resetSocketAfterReadError(socket);
+            return;
+        }
+
+        QByteArray packet;
+        packet.resize(pendingSize);
+        QHostAddress address;
+        quint16 port = 0;
+        const qint64 bytesRead = socket->readDatagram(packet.data(), packet.size(), &address, &port);
+        if (bytesRead < 0) {
+            resetSocketAfterReadError(socket);
+            return;
+        }
+        packet.resize(bytesRead);
 
 #if DEBUG_MDNSSCANNER_MESSAGES_DEBUG > 1
-	qDebug() << TAG << __PRETTY_FUNCTION__ << "From " << address << ":" << port << "| Data read" << packet.size() << "bytes.";
+		qDebug() << TAG << __PRETTY_FUNCTION__ << "From " << address << ":" << port << "| Data read" << packet.size() << "bytes.";
 #endif
 
-    // Attempt to decode the packet
-    Message message;
-    if (fromPacket(packet, message)) {
-        message.setAddress(address);
-        message.setPort(port);
-        emit q->messageReceived(message);
+        Message message;
+        if (fromPacket(packet, message)) {
+            message.setAddress(address);
+            message.setPort(port);
+            emit q->messageReceived(message);
+        }
+
+        if (!socket->hasPendingDatagrams()) {
+            return;
+        }
     }
+
+    QTimer::singleShot(0, this, [this, socket]() {
+        if (socket->state() == QAbstractSocket::BoundState && socket->hasPendingDatagrams()) {
+            processPendingDatagrams(socket);
+        }
+    });
+}
+
+void ServerPrivate::resetSocketAfterReadError(QUdpSocket *socket)
+{
+    emit q->error(socket->errorString());
+    socket->close();
+
+    // onTimeout() will bind the socket and rejoin the multicast groups. Use a
+    // short delay so a persistent platform socket error cannot become another
+    // tight retry loop.
+    QTimer::singleShot(1000, this, &ServerPrivate::onTimeout);
 }
 
 Server::Server(QObject *parent)

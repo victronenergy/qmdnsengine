@@ -57,6 +57,9 @@ private Q_SLOTS:
 
 private:
 
+    void processPendingDatagrams(QUdpSocket *socket);
+    void resetSocketAfterReadError(QUdpSocket *socket);
+
     Server *const q;
 };
 
